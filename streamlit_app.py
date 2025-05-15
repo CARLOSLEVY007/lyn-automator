@@ -67,7 +67,14 @@ if st.button("🚀 Ejecutar Cruce"):
         st.subheader("✅ Vista previa: Códigos con EXISTENCIAS y ORDENADO")
         st.dataframe(df_skus[['CODIGO', 'EXISTENCIAS', 'ORDENADO']].head(20))
 
-        # Ordenar columnas: poner EXISTENCIAS y ORDENADO después de CODIGO
+        # Ordenar columnas en orden deseado
+        columnas_ordenadas = [
+            "CODIGO", "DESCRIPCION", "LIVERPOOL ", "PALACIO",
+            "ORDENADO", "EXISTENCIAS", "VENTAS LIV 9 MESES", "VENTAS PAL 9 MESES"
+        ]
+        columnas_presentes = [col for col in columnas_ordenadas if col in df_skus.columns]
+        df_skus = df_skus[columnas_presentes + [col for col in df_skus.columns if col not in columnas_presentes]]
+    
         cols = df_skus.columns.tolist()
         for col in ['EXISTENCIAS', 'ORDENADO']:
             if col in cols:
@@ -75,7 +82,40 @@ if st.button("🚀 Ejecutar Cruce"):
                 cols.insert(cols.index('CODIGO') + 1, col)
         df_skus = df_skus[cols]
 
-        # Exportar archivo
+        
+        # Exportar archivo con formato condicional usando openpyxl
+        from openpyxl import load_workbook
+        from openpyxl.styles import PatternFill
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
+            temp_path = tmp.name
+
+        with pd.ExcelWriter(temp_path, engine="openpyxl") as writer:
+            df_skus.to_excel(writer, index=False, sheet_name="Reporte")
+        
+        wb = load_workbook(temp_path)
+        ws = wb.active
+
+        rojo = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
+
+        for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+            col_index = None
+            for idx, cell in enumerate(ws[1], 1):
+                if cell.value == "EXISTENCIAS":
+                    col_index = idx
+                    break
+            if col_index:
+                celda = row[col_index - 1]
+                if celda.value is None or celda.value == 0:
+                    for c in row:
+                        c.fill = rojo
+
+        wb.save(temp_path)
+
+        with open(temp_path, "rb") as f:
+            st.download_button("📥 Descargar archivo final", data=f, file_name="Reporte_LYN_Final.xlsx")
+    
         buffer = BytesIO()
         df_skus.to_excel(buffer, index=False)
         buffer.seek(0)
