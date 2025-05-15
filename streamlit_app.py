@@ -56,6 +56,8 @@ if st.button("🚀 Ejecutar Cruce"):
         df_ventas_pal = pd.read_excel(archivo_palacio)
         df_ventas_pal = df_ventas_pal[['Clave de Artículo', 'Venta Neta en UM']].dropna()
         df_ventas_pal.columns = ['CODIGO_PAL', 'VENTAS PAL 9 MESES']
+        df_ventas_pal['CODIGO_PAL'] = df_ventas_pal['CODIGO_PAL'].astype(str).str.strip()
+        df_ventas_pal = df_ventas_pal[df_ventas_pal['CODIGO_PAL'].str.isnumeric()]
         df_ventas_pal['CODIGO_PAL'] = df_ventas_pal['CODIGO_PAL'].astype(float).astype('Int64').astype(str)
         df_skus['PALACIO'] = df_skus['PALACIO'].astype(float).astype('Int64').astype(str)
         df_skus = pd.merge(df_skus, df_ventas_pal, how='left', left_on='PALACIO', right_on='CODIGO_PAL')
