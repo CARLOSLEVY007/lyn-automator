@@ -5,7 +5,14 @@ from io import BytesIO
 
 st.set_page_config(page_title="LYN DE MEXICO – Cruce de Archivos", layout="centered")
 
-st.image("assets/logo.png", width=150)
+import os
+from PIL import Image
+
+logo_path = os.path.join("assets", "logo.png")
+try:
+    st.image(Image.open(logo_path), width=150)
+except:
+    st.warning("⚠️ Logotipo no disponible.")
 st.title("LYN DE MEXICO – Agente de Cruce Inteligente")
 st.markdown("Bienvenido al Agente de Cruce de Archivos de **LYN DE MEXICO**.\nSube los archivos requeridos para generar el reporte de ventas y existencias automatizado.")
 
