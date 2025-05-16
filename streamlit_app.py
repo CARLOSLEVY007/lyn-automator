@@ -4,10 +4,13 @@ import pandas as pd
 from io import BytesIO
 import os
 from PIL import Image
+from openpyxl import load_workbook
+from openpyxl.styles import PatternFill
+import tempfile
 
 st.set_page_config(page_title="LYN – Agente de Cruce", layout="centered")
 
-# Mostrar logotipo desde archivo local
+# Cargar logotipo
 logo_path = os.path.join("assets", "logo.png")
 try:
     with open(logo_path, "rb") as f:
@@ -38,9 +41,9 @@ if st.button("🚀 Ejecutar Cruce"):
         df_existencias.rename(columns={'CANTIDAD': 'EXISTENCIAS'}, inplace=True)
 
         df_ordenado = pd.read_excel(archivo_ordenado, header=4)
-        df_ordenado = df_ordenado[['CODIGO', 'PEDIDO']].dropna()
+        df_ordenado = df_ordenado[['CODIGO', 'FALTANTE']].dropna()
         df_ordenado['CODIGO'] = df_ordenado['CODIGO'].astype(str).str.strip()
-        df_ordenado.rename(columns={'PEDIDO': 'ORDENADO'}, inplace=True)
+        df_ordenado.rename(columns={'FALTANTE': 'ORDENADO'}, inplace=True)
 
         df_skus = df_skus.merge(df_existencias, how='left', on='CODIGO')
         df_skus = df_skus.merge(df_ordenado, how='left', on='CODIGO')
@@ -63,46 +66,30 @@ if st.button("🚀 Ejecutar Cruce"):
         df_skus = pd.merge(df_skus, df_ventas_pal, how='left', left_on='PALACIO', right_on='CODIGO_PAL')
         df_skus.drop(columns='CODIGO_PAL', inplace=True)
 
-        # Vista previa
-        st.subheader("✅ Vista previa:")
-        st.dataframe(df_skus[['CODIGO', 'EXISTENCIAS', 'ORDENADO']].head(20))
+        # Cálculo SALDO FINAL
+        df_skus["SALDO FINAL"] = (
+            df_skus[["EXISTENCIAS", "ORDENADO", "VENTAS LIV 9 MESES", "VENTAS PAL 9 MESES"]]
+            .fillna(0)
+            .eval("EXISTENCIAS + ORDENADO - `VENTAS LIV 9 MESES` - `VENTAS PAL 9 MESES`")
+        )
 
-        # Ordenar columnas deseadas
         columnas_ordenadas = [
             "CODIGO", "DESCRIPCION", "LIVERPOOL ", "PALACIO",
-            "ORDENADO", "EXISTENCIAS", "VENTAS LIV 9 MESES", "VENTAS PAL 9 MESES"
+            "ORDENADO", "EXISTENCIAS", "VENTAS LIV 9 MESES", "VENTAS PAL 9 MESES", "SALDO FINAL"
         ]
         columnas_presentes = [col for col in columnas_ordenadas if col in df_skus.columns]
         df_skus = df_skus[columnas_presentes + [col for col in df_skus.columns if col not in columnas_presentes]]
 
-        # Formato condicional y exportación
-        from openpyxl import load_workbook
-        from openpyxl.styles import PatternFill
-        import tempfile
+        df_negativos = df_skus[df_skus["SALDO FINAL"] < 0]
 
+        # Guardar archivo Excel con dos hojas
         with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
-            temp_path = tmp.name
+            output_path = tmp.name
 
-        with pd.ExcelWriter(temp_path, engine="openpyxl") as writer:
-            df_skus.to_excel(writer, index=False, sheet_name="Reporte")
+        with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+            df_skus.to_excel(writer, index=False, sheet_name="Todos los productos")
+            df_negativos.to_excel(writer, index=False, sheet_name="Saldo negativo")
 
-        wb = load_workbook(temp_path)
-        ws = wb.active
-        rojo = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
-
-        for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
-            col_index = None
-            for idx, cell in enumerate(ws[1], 1):
-                if cell.value == "EXISTENCIAS":
-                    col_index = idx
-                    break
-            if col_index:
-                celda = row[col_index - 1]
-                if celda.value is None or celda.value == 0:
-                    for c in row:
-                        c.fill = rojo
-
-        wb.save(temp_path)
-
-        with open(temp_path, "rb") as f:
-            st.download_button("📥 Descargar archivo final", data=f, file_name="Reporte_LYN_Final.xlsx")
+        st.success("🎯 Cruce completado y archivo listo para descarga.")
+        with open(output_path, "rb") as f:
+            st.download_button("📥 Descargar archivo Excel", data=f, file_name="Reporte_LYN_FINAL.xlsx")
