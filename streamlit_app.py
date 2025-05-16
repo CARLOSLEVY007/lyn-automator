@@ -41,7 +41,7 @@ if st.button("🚀 Ejecutar Cruce"):
         df_existencias.rename(columns={'CANTIDAD': 'EXISTENCIAS'}, inplace=True)
 
         df_ordenado = pd.read_excel(archivo_ordenado, header=4)
-        df_ordenado = df_ordenado[['CODIGO', 'FALTANTE']].dropna()
+        df_ordenado = df_ordenado[['CODIGO', 'FALTANTE']].copy()
         df_ordenado['CODIGO'] = df_ordenado['CODIGO'].astype(str).str.strip()
         df_ordenado.rename(columns={'FALTANTE': 'ORDENADO'}, inplace=True)
 
