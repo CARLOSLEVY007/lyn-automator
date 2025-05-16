@@ -13,8 +13,9 @@ st.set_page_config(page_title="LYN – Agente de Cruce", layout="centered")
 # Cargar logotipo
 logo_path = os.path.join("assets", "logo.png")
 try:
-    with open(logo_path, "rb") as f:
-        st.image(f, width=150)
+    from PIL import Image
+    image = Image.open(logo_path)
+    st.image(image, width=150)
 except FileNotFoundError:
     st.warning("⚠️ Logotipo no disponible.")
 
