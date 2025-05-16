@@ -9,7 +9,10 @@ st.set_page_config(page_title="LYN – Agente de Cruce", layout="centered")
 
 # Mostrar logotipo si existe
 logo_path = os.path.join("assets", "logo.png")
-if os.path.exists(logo_path):
+try:
+    st.image(Image.open(logo_path), width=150)
+except:
+    st.warning("⚠️ No se pudo cargar el logo.")
     st.image(Image.open(logo_path), width=150)
 
 st.title("LYN DE MEXICO – Agente de Cruce de Archivos")
@@ -121,4 +124,4 @@ if st.button("🚀 Ejecutar Cruce"):
         buffer.seek(0)
 
         st.success("🎉 Cruce completo. Puedes descargar tu archivo.")
-        st.download_button("📥 Descargar archivo final", data=buffer, file_name="Reporte_LYN_Final.xlsx")
+        # Botón eliminado por duplicado
