@@ -7,13 +7,13 @@ from PIL import Image
 
 st.set_page_config(page_title="LYN – Agente de Cruce", layout="centered")
 
-# Mostrar logotipo si existe
+# Mostrar logotipo desde archivo local
 logo_path = os.path.join("assets", "logo.png")
 try:
-    st.image(Image.open(logo_path), width=150)
-except:
-    st.warning("⚠️ No se pudo cargar el logo.")
-    st.image(Image.open(logo_path), width=150)
+    with open(logo_path, "rb") as f:
+        st.image(f, width=150)
+except FileNotFoundError:
+    st.warning("⚠️ Logotipo no disponible.")
 
 st.title("LYN DE MEXICO – Agente de Cruce de Archivos")
 st.markdown("Sube los archivos requeridos para generar el reporte final consolidado:")
@@ -42,11 +42,9 @@ if st.button("🚀 Ejecutar Cruce"):
         df_ordenado['CODIGO'] = df_ordenado['CODIGO'].astype(str).str.strip()
         df_ordenado.rename(columns={'PEDIDO': 'ORDENADO'}, inplace=True)
 
-        # Unir por CODIGO
         df_skus = df_skus.merge(df_existencias, how='left', on='CODIGO')
         df_skus = df_skus.merge(df_ordenado, how='left', on='CODIGO')
 
-        # VENTAS LIVERPOOL
         df_ventas_liv = pd.read_excel(archivo_liverpool)
         df_ventas_liv = df_ventas_liv[['Artículo', 'vta total 9 meses']].dropna()
         df_ventas_liv.columns = ['CODIGO_LIV', 'VENTAS LIV 9 MESES']
@@ -55,7 +53,6 @@ if st.button("🚀 Ejecutar Cruce"):
         df_skus = pd.merge(df_skus, df_ventas_liv, how='left', left_on='LIVERPOOL ', right_on='CODIGO_LIV')
         df_skus.drop(columns='CODIGO_LIV', inplace=True)
 
-        # VENTAS PALACIO
         df_ventas_pal = pd.read_excel(archivo_palacio)
         df_ventas_pal = df_ventas_pal[['Clave de Artículo', 'Venta Neta en UM']].dropna()
         df_ventas_pal.columns = ['CODIGO_PAL', 'VENTAS PAL 9 MESES']
@@ -66,27 +63,19 @@ if st.button("🚀 Ejecutar Cruce"):
         df_skus = pd.merge(df_skus, df_ventas_pal, how='left', left_on='PALACIO', right_on='CODIGO_PAL')
         df_skus.drop(columns='CODIGO_PAL', inplace=True)
 
-        # Vista previa específica
-        st.subheader("✅ Vista previa: Códigos con EXISTENCIAS y ORDENADO")
+        # Vista previa
+        st.subheader("✅ Vista previa:")
         st.dataframe(df_skus[['CODIGO', 'EXISTENCIAS', 'ORDENADO']].head(20))
 
-        # Ordenar columnas en orden deseado
+        # Ordenar columnas deseadas
         columnas_ordenadas = [
             "CODIGO", "DESCRIPCION", "LIVERPOOL ", "PALACIO",
             "ORDENADO", "EXISTENCIAS", "VENTAS LIV 9 MESES", "VENTAS PAL 9 MESES"
         ]
         columnas_presentes = [col for col in columnas_ordenadas if col in df_skus.columns]
         df_skus = df_skus[columnas_presentes + [col for col in df_skus.columns if col not in columnas_presentes]]
-    
-        cols = df_skus.columns.tolist()
-        for col in ['EXISTENCIAS', 'ORDENADO']:
-            if col in cols:
-                cols.remove(col)
-                cols.insert(cols.index('CODIGO') + 1, col)
-        df_skus = df_skus[cols]
 
-        
-        # Exportar archivo con formato condicional usando openpyxl
+        # Formato condicional y exportación
         from openpyxl import load_workbook
         from openpyxl.styles import PatternFill
         import tempfile
@@ -96,10 +85,9 @@ if st.button("🚀 Ejecutar Cruce"):
 
         with pd.ExcelWriter(temp_path, engine="openpyxl") as writer:
             df_skus.to_excel(writer, index=False, sheet_name="Reporte")
-        
+
         wb = load_workbook(temp_path)
         ws = wb.active
-
         rojo = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
 
         for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
@@ -118,10 +106,3 @@ if st.button("🚀 Ejecutar Cruce"):
 
         with open(temp_path, "rb") as f:
             st.download_button("📥 Descargar archivo final", data=f, file_name="Reporte_LYN_Final.xlsx")
-    
-        buffer = BytesIO()
-        df_skus.to_excel(buffer, index=False)
-        buffer.seek(0)
-
-        st.success("🎉 Cruce completo. Puedes descargar tu archivo.")
-        # Botón eliminado por duplicado
